@@ -30,14 +30,6 @@ export function BookmarkApp({ initialBookmarks }: BookmarkAppProps) {
     [filteredBookmarks]
   );
 
-  const categoryCounts = useMemo(() => {
-    const counts: Record<string, number> = { All: bookmarks.length };
-    for (const bookmark of bookmarks) {
-      counts[bookmark.category] = (counts[bookmark.category] ?? 0) + 1;
-    }
-    return counts;
-  }, [bookmarks]);
-
   const hasExactMatch = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return true;
@@ -72,13 +64,12 @@ export function BookmarkApp({ initialBookmarks }: BookmarkAppProps) {
       };
 
       if (response.status === 409 && result.bookmark) {
-        setMessage("Already saved — opening it");
-        window.open(result.bookmark.url, "_blank", "noopener,noreferrer");
+        setMessage("Already saved");
         return;
       }
 
       if (!response.ok) {
-        setMessage(result.error ?? "Could not add site");
+        setMessage(result.error ?? "Could not bookmark");
         return;
       }
 
@@ -86,9 +77,10 @@ export function BookmarkApp({ initialBookmarks }: BookmarkAppProps) {
         setBookmarks(result.bookmarks);
       }
       setSearchQuery("");
-      setMessage(`Added ${result.bookmark?.title ?? "site"}`);
+      setMessage(`Saved ${result.bookmark?.title ?? "site"}`);
+      setTimeout(() => setMessage(undefined), 2000);
     } catch {
-      setMessage("Could not add site. Try again.");
+      setMessage("Could not bookmark. Try again.");
     } finally {
       setIsAdding(false);
     }
@@ -144,66 +136,44 @@ export function BookmarkApp({ initialBookmarks }: BookmarkAppProps) {
 
     if (match) {
       void handleOpen(match);
+      setSearchQuery("");
       return;
     }
 
     if (showAddHint || filteredBookmarks.length === 0) {
       void handleAdd();
     }
-  }, [
-    searchQuery,
-    filteredBookmarks,
-    showAddHint,
-    handleAdd,
-    handleOpen,
-  ]);
+  }, [searchQuery, filteredBookmarks, showAddHint, handleAdd, handleOpen]);
 
   return (
-    <div className="flex min-h-screen flex-col items-center px-4 pb-10 pt-[12vh] sm:pt-[16vh]">
-      <header className="mb-8 flex w-full max-w-3xl flex-col items-center">
-        <h1 className="mb-8 text-5xl font-normal tracking-tight sm:text-6xl">
-          <span className="text-[#4285f4]">B</span>
-          <span className="text-[#ea4335]">8</span>
-          <span className="text-[#fbbc04]">8</span>
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
+      <header className="flex flex-col items-center px-4 pt-8 pb-4">
+        <h1 className="text-lg font-medium tracking-wide text-foreground">
+          B88
         </h1>
-
-        <GoogleSearch
-          value={searchQuery}
-          onChange={setSearchQuery}
-          onSubmit={handleSearchSubmit}
-          isAdding={isAdding}
-          showAddHint={showAddHint}
-          addHint={`Press Enter to add "${searchQuery.trim()}"`}
-        />
-
-        {message && (
-          <p className="mt-3 text-sm text-muted">{message}</p>
-        )}
       </header>
 
-      <div className="mb-6 w-full max-w-3xl">
+      <div className="mb-4 flex justify-center px-4">
         <CategoryTabs
           selected={selectedCategory}
           onChange={setSelectedCategory}
-          counts={categoryCounts}
         />
       </div>
 
-      <main className="w-full max-w-3xl">
+      <main className="flex flex-1 flex-col items-center px-4 pb-28">
         {filteredBookmarks.length === 0 ? (
-          <p className="text-center text-sm text-muted">
+          <p className="mt-8 text-center text-xs text-muted">
             {searchQuery
-              ? "No matches — press Enter to add this site"
-              : "No sites in this tab yet"}
+              ? "No match — press Enter to bookmark"
+              : "No bookmarks yet"}
           </p>
         ) : (
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
-            {filteredBookmarks.map((bookmark, index) => (
+          <div className="flex flex-wrap justify-center gap-1">
+            {filteredBookmarks.map((bookmark) => (
               <BookmarkTile
                 key={bookmark.id}
                 bookmark={bookmark}
                 maxClicks={maxClicks}
-                rank={index}
                 onOpen={handleOpen}
               />
             ))}
@@ -211,8 +181,20 @@ export function BookmarkApp({ initialBookmarks }: BookmarkAppProps) {
         )}
       </main>
 
-      <footer className="mt-auto pt-10 text-center text-xs text-muted">
-        {bookmarks.length} sites · most visited appear first & larger
+      <footer className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="mx-auto flex max-w-md flex-col items-center">
+          {message && (
+            <p className="mb-2 text-center text-xs text-muted">{message}</p>
+          )}
+          <GoogleSearch
+            value={searchQuery}
+            onChange={setSearchQuery}
+            onSubmit={handleSearchSubmit}
+            isAdding={isAdding}
+            showAddHint={showAddHint}
+            addHint={`Bookmark "${searchQuery.trim()}"`}
+          />
+        </div>
       </footer>
     </div>
   );
