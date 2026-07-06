@@ -63,7 +63,10 @@ export async function POST(request: Request) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Failed to add bookmark";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const status = error instanceof Error && error.message.includes("GitHub token")
+      ? 403
+      : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }
 

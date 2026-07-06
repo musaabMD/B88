@@ -1,49 +1,38 @@
 "use client";
 
 import type { Bookmark } from "@/types/bookmark";
-import { getVisibilityScale } from "@/lib/bookmarks";
 
 interface BookmarkTileProps {
   bookmark: Bookmark;
-  maxClicks: number;
   onOpen: (bookmark: Bookmark) => void;
 }
 
-function getFaviconUrl(url: string, size: number): string {
+function getFaviconUrl(url: string): string {
   try {
     const hostname = new URL(url).hostname;
-    return `https://www.google.com/s2/favicons?domain=${hostname}&sz=${size}`;
+    return `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`;
   } catch {
     return "";
   }
 }
 
-export function BookmarkTile({
-  bookmark,
-  maxClicks,
-  onOpen,
-}: BookmarkTileProps) {
-  const scale = getVisibilityScale(bookmark.clicks, maxClicks);
-  const iconSize = Math.round(28 * scale);
-  const favicon = getFaviconUrl(bookmark.url, 64);
+export function BookmarkTile({ bookmark, onOpen }: BookmarkTileProps) {
+  const favicon = getFaviconUrl(bookmark.url);
 
   return (
     <button
       type="button"
       onClick={() => onOpen(bookmark)}
-      className="group flex w-[72px] flex-col items-center gap-1.5 rounded-xl p-2 transition-colors hover:bg-tile-hover active:scale-95"
+      className="group flex h-[88px] w-[72px] flex-col items-center justify-start gap-1.5 rounded-xl p-2 transition-colors hover:bg-tile-hover active:scale-95"
     >
-      <span
-        className="flex items-center justify-center rounded-xl bg-tile-bg transition-transform group-hover:scale-105"
-        style={{ width: iconSize + 16, height: iconSize + 16 }}
-      >
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-tile-bg transition-transform group-hover:scale-105">
         {favicon ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={favicon}
             alt=""
-            width={iconSize}
-            height={iconSize}
+            width={28}
+            height={28}
             className="rounded-md"
           />
         ) : (
@@ -52,7 +41,7 @@ export function BookmarkTile({
       </span>
 
       <span
-        className="max-w-[68px] truncate text-center text-[10px] leading-tight text-foreground"
+        className="line-clamp-2 w-full text-center text-[10px] leading-tight text-foreground"
         title={bookmark.title}
       >
         {bookmark.title}

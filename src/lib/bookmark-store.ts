@@ -34,6 +34,35 @@ function getGitHubConfig() {
   };
 }
 
+function githubHeaders(token: string): HeadersInit {
+  return {
+    Authorization: `Bearer ${token}`,
+    Accept: "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28",
+  };
+}
+
+export class GitHubTokenError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "GitHubTokenError";
+  }
+}
+
+function parseGitHubError(status: number, body: string): string {
+  if (status === 403) {
+    return (
+      "GitHub token lacks write access. Create a fine-grained token with " +
+      "Repository access: B88, Permissions → Contents: Read and write. " +
+      "Or use a classic token with the repo scope. Update GITHUB_TOKEN in Vercel."
+    );
+  }
+  if (status === 404) {
+    return "Repository or file not found. Check GITHUB_OWNER, GITHUB_REPO, and GITHUB_BRANCH.";
+  }
+  return `GitHub API error (${status}): ${body}`;
+}
+
 async function readLocalBookmarks(): Promise<Bookmark[]> {
   const content = await readFile(getLocalPath(), "utf-8");
   const parsed = JSON.parse(content) as unknown;
@@ -62,17 +91,14 @@ async function readGitHubBookmarks(): Promise<{
   const response = await fetch(
     `https://api.github.com/repos/${owner}/${repo}/contents/${BOOKMARKS_PATH}?ref=${branch}`,
     {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-      },
-      next: { revalidate: 0 },
+      headers: githubHeaders(token),
+      cache: "no-store",
     }
   );
 
   if (!response.ok) {
-    throw new Error(`Failed to read bookmarks from GitHub: ${response.status}`);
+    const body = await response.text();
+    throw new GitHubTokenError(parseGitHubError(response.status, body));
   }
 
   const data = (await response.json()) as GitHubFileResponse;
@@ -104,10 +130,8 @@ async function writeGitHubBookmarks(
     {
       method: "PUT",
       headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/vnd.github+json",
+        ...githubHeaders(token),
         "Content-Type": "application/json",
-        "X-GitHub-Api-Version": "2022-11-28",
       },
       body: JSON.stringify({
         message: `Update bookmarks (${sorted.length} sites)`,
@@ -119,8 +143,8 @@ async function writeGitHubBookmarks(
   );
 
   if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Failed to save bookmarks to GitHub: ${error}`);
+    const body = await response.text();
+    throw new GitHubTokenError(parseGitHubError(response.status, body));
   }
 }
 
@@ -134,7 +158,10 @@ export async function getBookmarks(): Promise<Bookmark[]> {
       const { bookmarks, sha } = await readGitHubBookmarks();
       cachedSha = sha;
       return bookmarks;
-    } catch {
+    } catch (error) {
+      if (error instanceof GitHubTokenError && error.message.includes("write")) {
+        throw error;
+      }
       return readLocalBookmarks();
     }
   }
@@ -146,11 +173,18 @@ export async function saveBookmarks(bookmarks: Bookmark[]): Promise<void> {
   const { token } = getGitHubConfig();
 
   if (token) {
-    if (!cachedSha) {
+    try {
       const { sha } = await readGitHubBookmarks();
       cachedSha = sha;
+    } catch {
+      if (!cachedSha) {
+        throw new GitHubTokenError(
+          "Cannot save: GitHub token cannot read the repo. Check token permissions."
+        );
+      }
     }
-    await writeGitHubBookmarks(bookmarks, cachedSha);
+
+    await writeGitHubBookmarks(bookmarks, cachedSha!);
     const { sha } = await readGitHubBookmarks();
     cachedSha = sha;
     return;

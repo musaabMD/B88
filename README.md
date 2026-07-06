@@ -18,16 +18,32 @@ npm install
 npm run dev
 ```
 
-## GitHub Sync (Vercel)
+## GitHub Sync (Vercel) — IMPORTANT
 
-Add these environment variables:
+Your token must have **write** access to commit bookmarks.
+
+### Fine-grained token (recommended)
+
+1. Go to [github.com/settings/tokens?type=beta](https://github.com/settings/tokens?type=beta)
+2. Generate new token
+3. **Repository access:** Only select `B88`
+4. **Permissions → Repository permissions → Contents:** **Read and write**
+5. Add to Vercel environment variables:
 
 ```
-GITHUB_TOKEN=your_token_with_Contents_read_write
+GITHUB_TOKEN=your_token_here
 GITHUB_OWNER=musaabMD
 GITHUB_REPO=B88
 GITHUB_BRANCH=main
 ```
+
+### Classic token (alternative)
+
+Create a token with the **`repo`** scope (full control of private repositories).
+
+### Common error
+
+`Resource not accessible by personal access token` means your token can read but **cannot write**. Update the token permissions and redeploy on Vercel.
 
 ## How to use
 

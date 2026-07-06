@@ -25,11 +25,6 @@ export function BookmarkApp({ initialBookmarks }: BookmarkAppProps) {
     [bookmarks, searchQuery, selectedCategory]
   );
 
-  const maxClicks = useMemo(
-    () => Math.max(0, ...filteredBookmarks.map((b) => b.clicks)),
-    [filteredBookmarks]
-  );
-
   const hasExactMatch = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return true;
@@ -173,7 +168,6 @@ export function BookmarkApp({ initialBookmarks }: BookmarkAppProps) {
               <BookmarkTile
                 key={bookmark.id}
                 bookmark={bookmark}
-                maxClicks={maxClicks}
                 onOpen={handleOpen}
               />
             ))}
