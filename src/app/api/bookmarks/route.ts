@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
-import { generateId, normalizeUrl } from "@/lib/bookmarks";
+import {
+  generateId,
+  guessCategory,
+  normalizeUrl,
+  sortBookmarks,
+  urlsMatch,
+} from "@/lib/bookmarks";
 import { getBookmarks, saveBookmarks } from "@/lib/bookmark-store";
+import { fetchPageMetadata } from "@/lib/metadata";
 import type { Bookmark } from "@/types/bookmark";
 
 export async function GET() {
@@ -16,35 +23,40 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as { title?: string; url?: string };
-    const title = body.title?.trim();
-    const url = body.url?.trim();
+    const body = (await request.json()) as { url?: string };
+    const rawUrl = body.url?.trim();
 
-    if (!title || !url) {
-      return NextResponse.json(
-        { error: "Title and URL are required" },
-        { status: 400 }
-      );
+    if (!rawUrl) {
+      return NextResponse.json({ error: "URL is required" }, { status: 400 });
     }
 
+    const normalizedUrl = normalizeUrl(rawUrl);
     const bookmarks = await getBookmarks();
-    const normalizedUrl = normalizeUrl(url);
 
-    if (bookmarks.some((bookmark) => bookmark.url === normalizedUrl)) {
+    const existing = bookmarks.find((bookmark) =>
+      urlsMatch(bookmark.url, normalizedUrl)
+    );
+
+    if (existing) {
       return NextResponse.json(
-        { error: "This site is already saved" },
+        { error: "Site already saved", bookmark: existing },
         { status: 409 }
       );
     }
 
+    const metadata = await fetchPageMetadata(normalizedUrl);
+
     const newBookmark: Bookmark = {
       id: generateId(),
-      title,
+      title: metadata.title,
       url: normalizedUrl,
+      description: metadata.description,
+      category: guessCategory(normalizedUrl),
+      clicks: 0,
       createdAt: Date.now(),
     };
 
-    const updated = [newBookmark, ...bookmarks];
+    const updated = sortBookmarks([newBookmark, ...bookmarks]);
     await saveBookmarks(updated);
 
     return NextResponse.json({ bookmark: newBookmark, bookmarks: updated });

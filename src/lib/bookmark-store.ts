@@ -1,7 +1,23 @@
 import { readFile, writeFile } from "fs/promises";
 import path from "path";
 import type { Bookmark } from "@/types/bookmark";
-import { sortBookmarks } from "@/lib/bookmarks";
+import { migrateBookmark, sortBookmarks } from "@/lib/bookmarks";
+
+function parseBookmarks(raw: unknown): Bookmark[] {
+  if (!Array.isArray(raw)) return [];
+  return sortBookmarks(
+    raw
+      .filter(
+        (item): item is Partial<Bookmark> & { id: string; url: string; title: string } =>
+          typeof item === "object" &&
+          item !== null &&
+          "id" in item &&
+          "url" in item &&
+          "title" in item
+      )
+      .map(migrateBookmark)
+  );
+}
 
 const BOOKMARKS_PATH = "data/bookmarks.json";
 
@@ -20,8 +36,8 @@ function getGitHubConfig() {
 
 async function readLocalBookmarks(): Promise<Bookmark[]> {
   const content = await readFile(getLocalPath(), "utf-8");
-  const parsed = JSON.parse(content) as Bookmark[];
-  return sortBookmarks(Array.isArray(parsed) ? parsed : []);
+  const parsed = JSON.parse(content) as unknown;
+  return parseBookmarks(parsed);
 }
 
 async function writeLocalBookmarks(bookmarks: Bookmark[]): Promise<void> {
@@ -61,10 +77,10 @@ async function readGitHubBookmarks(): Promise<{
 
   const data = (await response.json()) as GitHubFileResponse;
   const decoded = Buffer.from(data.content, "base64").toString("utf-8");
-  const parsed = JSON.parse(decoded) as Bookmark[];
+  const parsed = JSON.parse(decoded) as unknown;
 
   return {
-    bookmarks: sortBookmarks(Array.isArray(parsed) ? parsed : []),
+    bookmarks: parseBookmarks(parsed),
     sha: data.sha,
   };
 }

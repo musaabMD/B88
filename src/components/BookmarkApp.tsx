@@ -1,177 +1,219 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { AddBookmarkModal } from "@/components/AddBookmarkModal";
-import { BookmarkCard } from "@/components/BookmarkCard";
-import { SearchBar } from "@/components/SearchBar";
-import { filterBookmarks } from "@/lib/bookmarks";
-import type { Bookmark, BookmarkInput } from "@/types/bookmark";
+import { BookmarkTile } from "@/components/BookmarkTile";
+import { CategoryTabs } from "@/components/CategoryTabs";
+import { GoogleSearch } from "@/components/GoogleSearch";
+import { filterBookmarks, sortBookmarks, urlsMatch } from "@/lib/bookmarks";
+import type { Bookmark } from "@/types/bookmark";
 
 interface BookmarkAppProps {
   initialBookmarks: Bookmark[];
 }
 
 export function BookmarkApp({ initialBookmarks }: BookmarkAppProps) {
-  const [bookmarks, setBookmarks] = useState<Bookmark[]>(initialBookmarks);
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>(
+    sortBookmarks(initialBookmarks)
+  );
   const [searchQuery, setSearchQuery] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [error, setError] = useState<string | undefined>();
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [isAdding, setIsAdding] = useState(false);
+  const [message, setMessage] = useState<string | undefined>();
 
   const filteredBookmarks = useMemo(
-    () => filterBookmarks(bookmarks, searchQuery),
-    [bookmarks, searchQuery]
+    () => filterBookmarks(bookmarks, searchQuery, selectedCategory),
+    [bookmarks, searchQuery, selectedCategory]
   );
 
-  const handleAdd = useCallback(async (data: BookmarkInput) => {
-    setIsSaving(true);
-    setError(undefined);
+  const maxClicks = useMemo(
+    () => Math.max(0, ...filteredBookmarks.map((b) => b.clicks)),
+    [filteredBookmarks]
+  );
+
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = { All: bookmarks.length };
+    for (const bookmark of bookmarks) {
+      counts[bookmark.category] = (counts[bookmark.category] ?? 0) + 1;
+    }
+    return counts;
+  }, [bookmarks]);
+
+  const hasExactMatch = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return true;
+    return filteredBookmarks.some((bookmark) => {
+      const haystack = [bookmark.title, bookmark.url, bookmark.description ?? ""]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [filteredBookmarks, searchQuery]);
+
+  const showAddHint = searchQuery.trim().length > 0 && !hasExactMatch;
+
+  const handleAdd = useCallback(async () => {
+    const query = searchQuery.trim();
+    if (!query || isAdding) return;
+
+    setIsAdding(true);
+    setMessage(undefined);
 
     try {
       const response = await fetch("/api/bookmarks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ url: query }),
       });
 
       const result = (await response.json()) as {
         bookmarks?: Bookmark[];
+        bookmark?: Bookmark;
         error?: string;
       };
 
+      if (response.status === 409 && result.bookmark) {
+        setMessage("Already saved — opening it");
+        window.open(result.bookmark.url, "_blank", "noopener,noreferrer");
+        return;
+      }
+
       if (!response.ok) {
-        setError(result.error ?? "Could not save bookmark");
+        setMessage(result.error ?? "Could not add site");
         return;
       }
 
       if (result.bookmarks) {
         setBookmarks(result.bookmarks);
       }
-      setIsModalOpen(false);
+      setSearchQuery("");
+      setMessage(`Added ${result.bookmark?.title ?? "site"}`);
     } catch {
-      setError("Could not save bookmark. Try again.");
+      setMessage("Could not add site. Try again.");
     } finally {
-      setIsSaving(false);
+      setIsAdding(false);
     }
-  }, []);
+  }, [searchQuery, isAdding]);
 
-  const handleDelete = useCallback(async (id: string) => {
-    setDeletingId(id);
+  const handleOpen = useCallback(async (bookmark: Bookmark) => {
+    window.open(bookmark.url, "_blank", "noopener,noreferrer");
 
     try {
-      const response = await fetch(`/api/bookmarks?id=${encodeURIComponent(id)}`, {
-        method: "DELETE",
+      const response = await fetch("/api/bookmarks/click", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: bookmark.id }),
       });
 
-      const result = (await response.json()) as {
-        bookmarks?: Bookmark[];
-        error?: string;
-      };
+      const result = (await response.json()) as { bookmarks?: Bookmark[] };
 
-      if (!response.ok) {
-        setError(result.error ?? "Could not delete bookmark");
-        return;
-      }
-
-      if (result.bookmarks) {
+      if (response.ok && result.bookmarks) {
         setBookmarks(result.bookmarks);
+      } else {
+        setBookmarks((prev) =>
+          sortBookmarks(
+            prev.map((item) =>
+              item.id === bookmark.id
+                ? { ...item, clicks: item.clicks + 1 }
+                : item
+            )
+          )
+        );
       }
     } catch {
-      setError("Could not delete bookmark. Try again.");
-    } finally {
-      setDeletingId(null);
+      setBookmarks((prev) =>
+        sortBookmarks(
+          prev.map((item) =>
+            item.id === bookmark.id
+              ? { ...item, clicks: item.clicks + 1 }
+              : item
+          )
+        )
+      );
     }
   }, []);
 
+  const handleSearchSubmit = useCallback(() => {
+    const query = searchQuery.trim();
+    if (!query) return;
+
+    const match = filteredBookmarks.find(
+      (bookmark) =>
+        bookmark.title.toLowerCase() === query.toLowerCase() ||
+        urlsMatch(bookmark.url, query)
+    );
+
+    if (match) {
+      void handleOpen(match);
+      return;
+    }
+
+    if (showAddHint || filteredBookmarks.length === 0) {
+      void handleAdd();
+    }
+  }, [
+    searchQuery,
+    filteredBookmarks,
+    showAddHint,
+    handleAdd,
+    handleOpen,
+  ]);
+
   return (
-    <div className="min-h-screen pb-24">
-      <header className="sticky top-0 z-40 border-b border-border/80 bg-background/90 px-4 py-4 backdrop-blur-md sm:px-6">
-        <div className="mx-auto max-w-2xl">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-                My Sites
-              </h1>
-              <p className="text-sm text-muted">
-                {bookmarks.length} saved · synced to GitHub
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setError(undefined);
-                setIsModalOpen(true);
-              }}
-              className="hidden h-11 items-center gap-2 rounded-xl bg-accent px-4 text-sm font-medium text-white sm:flex"
-            >
-              + Add site
-            </button>
-          </div>
-          <SearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            resultCount={filteredBookmarks.length}
-            totalCount={bookmarks.length}
-          />
-        </div>
+    <div className="flex min-h-screen flex-col items-center px-4 pb-10 pt-[12vh] sm:pt-[16vh]">
+      <header className="mb-8 flex w-full max-w-3xl flex-col items-center">
+        <h1 className="mb-8 text-5xl font-normal tracking-tight sm:text-6xl">
+          <span className="text-[#4285f4]">B</span>
+          <span className="text-[#ea4335]">8</span>
+          <span className="text-[#fbbc04]">8</span>
+        </h1>
+
+        <GoogleSearch
+          value={searchQuery}
+          onChange={setSearchQuery}
+          onSubmit={handleSearchSubmit}
+          isAdding={isAdding}
+          showAddHint={showAddHint}
+          addHint={`Press Enter to add "${searchQuery.trim()}"`}
+        />
+
+        {message && (
+          <p className="mt-3 text-sm text-muted">{message}</p>
+        )}
       </header>
 
-      <main className="mx-auto max-w-2xl px-4 py-4 sm:px-6 sm:py-6">
-        {error && !isModalOpen && (
-          <p className="mb-4 rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-400">
-            {error}
-          </p>
-        )}
+      <div className="mb-6 w-full max-w-3xl">
+        <CategoryTabs
+          selected={selectedCategory}
+          onChange={setSelectedCategory}
+          counts={categoryCounts}
+        />
+      </div>
 
+      <main className="w-full max-w-3xl">
         {filteredBookmarks.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border py-16 text-center">
-            <p className="text-lg text-muted">
-              {searchQuery ? "No sites match your search" : "No sites yet"}
-            </p>
-            <p className="mt-1 text-sm text-muted/70">
-              {searchQuery
-                ? "Try another word"
-                : "Tap + to save your first site"}
-            </p>
-          </div>
+          <p className="text-center text-sm text-muted">
+            {searchQuery
+              ? "No matches — press Enter to add this site"
+              : "No sites in this tab yet"}
+          </p>
         ) : (
-          <ul className="space-y-3">
-            {filteredBookmarks.map((bookmark) => (
-              <li key={bookmark.id}>
-                <BookmarkCard
-                  bookmark={bookmark}
-                  onDelete={handleDelete}
-                  isDeleting={deletingId === bookmark.id}
-                />
-              </li>
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+            {filteredBookmarks.map((bookmark, index) => (
+              <BookmarkTile
+                key={bookmark.id}
+                bookmark={bookmark}
+                maxClicks={maxClicks}
+                rank={index}
+                onOpen={handleOpen}
+              />
             ))}
-          </ul>
+          </div>
         )}
       </main>
 
-      <button
-        type="button"
-        onClick={() => {
-          setError(undefined);
-          setIsModalOpen(true);
-        }}
-        className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-2xl font-light text-white shadow-lg shadow-accent/30 sm:hidden"
-        aria-label="Add site"
-      >
-        +
-      </button>
-
-      <AddBookmarkModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setError(undefined);
-        }}
-        onSubmit={handleAdd}
-        isSaving={isSaving}
-        error={error}
-      />
+      <footer className="mt-auto pt-10 text-center text-xs text-muted">
+        {bookmarks.length} sites · most visited appear first & larger
+      </footer>
     </div>
   );
 }

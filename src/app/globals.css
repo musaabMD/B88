@@ -1,27 +1,27 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0a0a0f;
-  --foreground: #ededed;
-  --card: #14141f;
-  --card-hover: #1c1c2e;
-  --border: #2a2a3d;
-  --accent: #6366f1;
-  --accent-hover: #818cf8;
-  --muted: #a1a1aa;
+  --background: #ffffff;
+  --foreground: #202124;
+  --muted: #5f6368;
+  --border: #dfe1e5;
+  --search-bg: #ffffff;
+  --search-shadow: 0 1px 6px rgba(32, 33, 36, 0.18);
+  --search-shadow-hover: 0 1px 8px rgba(32, 33, 36, 0.28);
+  --tab-active: #1a73e8;
+  --tile-bg: #f8f9fa;
+  --tile-hover: #f1f3f4;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-hover: var(--card-hover);
-  --color-border: var(--border);
-  --color-accent: var(--accent);
-  --color-accent-hover: var(--accent-hover);
   --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-tab-active: var(--tab-active);
+  --color-tile-bg: var(--tile-bg);
+  --color-tile-hover: var(--tile-hover);
   --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
 * {
@@ -35,10 +35,9 @@ html {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), system-ui, sans-serif;
+  font-family: var(--font-sans), Arial, sans-serif;
   min-height: 100vh;
   min-height: 100dvh;
-  overscroll-behavior-y: none;
 }
 
 input,
