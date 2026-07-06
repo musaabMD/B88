@@ -30,15 +30,17 @@ npx convex deploy
 
 This pushes the functions in `convex/` to your cloud deployment.
 
-### 3. Environment variables
+### 3. Environment variables (Vercel)
 
-**Vercel** (or `.env.local`):
+Add this in **Vercel → Settings → Environment Variables**:
 
 ```
 NEXT_PUBLIC_CONVEX_URL=https://decisive-goldfinch-992.convex.cloud
 ```
 
-You do **not** need `GITHUB_TOKEN` anymore — bookmarks are stored in Convex.
+> If you skip this, the app defaults to `decisive-goldfinch-992` anyway.
+
+**Remove old GitHub vars** if still present: `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO`, `GITHUB_BRANCH`
 
 ### 4. Run locally
 
