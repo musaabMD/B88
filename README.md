@@ -1,56 +1,73 @@
 # B88 — My Bookmarks
 
-A Google-style homepage for your personal bookmarks. Search sites, add new ones from the search bar, and your most-visited links rise to the top.
+A Google-style personal bookmark homepage. Search, visit, and save sites — stored in **Convex** (no GitHub token needed).
 
 ## Features
 
-- **Google-like homepage** — clean, centered search bar
-- **Search to add** — type a URL and press Enter if the site isn't saved yet
-- **Auto title** — fetches page title & description from site metadata
-- **Category tabs** — filter by Dev, Work, Social, News, Other
-- **Click tracking** — every visit is counted; more clicks = higher & larger on the page
-- **Synced to GitHub** — bookmarks saved in `data/bookmarks.json`
+- Black background, white text, compact equal-size tiles
+- Search bar at the bottom — type a URL and press Enter to bookmark
+- Auto-fetches page title from site metadata
+- Category tabs: All, Dev, Work, Social, News, Other
+- Click tracking — most visited sites appear first
+- Real-time sync via Convex
 
-## Quick Start
+## Setup
+
+### 1. Install
 
 ```bash
 npm install
+```
+
+### 2. Convex (your deployment)
+
+Your Convex project: **decisive-goldfinch-992**
+
+```bash
+npx convex login
+npx convex deploy
+```
+
+This pushes the functions in `convex/` to your cloud deployment.
+
+### 3. Environment variables
+
+**Vercel** (or `.env.local`):
+
+```
+NEXT_PUBLIC_CONVEX_URL=https://decisive-goldfinch-992.convex.cloud
+```
+
+You do **not** need `GITHUB_TOKEN` anymore — bookmarks are stored in Convex.
+
+### 4. Run locally
+
+```bash
+# Terminal 1 — Convex backend
+npx convex dev
+
+# Terminal 2 — Next.js frontend
 npm run dev
 ```
 
-## GitHub Sync (Vercel) — IMPORTANT
+Open http://localhost:3000
 
-Your token must have **write** access to commit bookmarks.
+## Deploy to Vercel
 
-### Fine-grained token (recommended)
-
-1. Go to [github.com/settings/tokens?type=beta](https://github.com/settings/tokens?type=beta)
-2. Generate new token
-3. **Repository access:** Only select `B88`
-4. **Permissions → Repository permissions → Contents:** **Read and write**
-5. Add to Vercel environment variables:
-
-```
-GITHUB_TOKEN=your_token_here
-GITHUB_OWNER=musaabMD
-GITHUB_REPO=B88
-GITHUB_BRANCH=main
-```
-
-### Classic token (alternative)
-
-Create a token with the **`repo`** scope (full control of private repositories).
-
-### Common error
-
-`Resource not accessible by personal access token` means your token can read but **cannot write**. Update the token permissions and redeploy on Vercel.
+1. Push to GitHub
+2. Import on Vercel
+3. Add env var: `NEXT_PUBLIC_CONVEX_URL=https://decisive-goldfinch-992.convex.cloud`
+4. Deploy
+5. Make sure you've run `npx convex deploy` so functions exist on your Convex project
 
 ## How to use
 
-1. **Search** — type to filter your saved sites
-2. **Visit** — click a tile to open in a new tab (click count goes up)
-3. **Add** — type a URL like `reddit.com` and press Enter if it's not found
-4. **Filter** — use tabs to show only Dev, Work, Social, etc.
+| Action | How |
+|--------|-----|
+| Search | Type in the bottom search bar |
+| Visit | Tap a tile |
+| Bookmark | Type URL → press Enter |
+| Filter | Tap a category tab |
 
 ## License
 

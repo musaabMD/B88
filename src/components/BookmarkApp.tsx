@@ -1,29 +1,29 @@
 "use client";
 
+import { useAction, useMutation, useQuery } from "convex/react";
 import { useCallback, useMemo, useState } from "react";
+import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
 import { BookmarkTile } from "@/components/BookmarkTile";
 import { CategoryTabs } from "@/components/CategoryTabs";
 import { GoogleSearch } from "@/components/GoogleSearch";
-import { filterBookmarks, sortBookmarks, urlsMatch } from "@/lib/bookmarks";
+import { filterBookmarks, urlsMatch } from "@/lib/bookmarks";
 import type { Bookmark } from "@/types/bookmark";
 
-interface BookmarkAppProps {
-  initialBookmarks: Bookmark[];
-}
+export function BookmarkApp() {
+  const bookmarks = useQuery(api.bookmarks.list);
+  const addFromUrl = useAction(api.bookmarkActions.addFromUrl);
+  const trackClick = useMutation(api.bookmarks.trackClick);
 
-export function BookmarkApp({ initialBookmarks }: BookmarkAppProps) {
-  const [bookmarks, setBookmarks] = useState<Bookmark[]>(
-    sortBookmarks(initialBookmarks)
-  );
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [isAdding, setIsAdding] = useState(false);
   const [message, setMessage] = useState<string | undefined>();
 
-  const filteredBookmarks = useMemo(
-    () => filterBookmarks(bookmarks, searchQuery, selectedCategory),
-    [bookmarks, searchQuery, selectedCategory]
-  );
+  const filteredBookmarks = useMemo(() => {
+    const list = bookmarks ?? [];
+    return filterBookmarks(list, searchQuery, selectedCategory);
+  }, [bookmarks, searchQuery, selectedCategory]);
 
   const hasExactMatch = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -46,78 +46,34 @@ export function BookmarkApp({ initialBookmarks }: BookmarkAppProps) {
     setMessage(undefined);
 
     try {
-      const response = await fetch("/api/bookmarks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: query }),
-      });
-
-      const result = (await response.json()) as {
-        bookmarks?: Bookmark[];
-        bookmark?: Bookmark;
-        error?: string;
-      };
-
-      if (response.status === 409 && result.bookmark) {
-        setMessage("Already saved");
-        return;
-      }
-
-      if (!response.ok) {
-        setMessage(result.error ?? "Could not bookmark");
-        return;
-      }
-
-      if (result.bookmarks) {
-        setBookmarks(result.bookmarks);
-      }
+      const bookmark = await addFromUrl({ url: query });
       setSearchQuery("");
-      setMessage(`Saved ${result.bookmark?.title ?? "site"}`);
+      setMessage(`Saved ${bookmark.title}`);
       setTimeout(() => setMessage(undefined), 2000);
-    } catch {
-      setMessage("Could not bookmark. Try again.");
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Could not bookmark";
+      if (msg.includes("already saved")) {
+        setMessage("Already saved");
+      } else {
+        setMessage(msg);
+      }
     } finally {
       setIsAdding(false);
     }
-  }, [searchQuery, isAdding]);
+  }, [searchQuery, isAdding, addFromUrl]);
 
-  const handleOpen = useCallback(async (bookmark: Bookmark) => {
-    window.open(bookmark.url, "_blank", "noopener,noreferrer");
+  const handleOpen = useCallback(
+    async (bookmark: Bookmark) => {
+      window.open(bookmark.url, "_blank", "noopener,noreferrer");
 
-    try {
-      const response = await fetch("/api/bookmarks/click", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: bookmark.id }),
-      });
-
-      const result = (await response.json()) as { bookmarks?: Bookmark[] };
-
-      if (response.ok && result.bookmarks) {
-        setBookmarks(result.bookmarks);
-      } else {
-        setBookmarks((prev) =>
-          sortBookmarks(
-            prev.map((item) =>
-              item.id === bookmark.id
-                ? { ...item, clicks: item.clicks + 1 }
-                : item
-            )
-          )
-        );
+      try {
+        await trackClick({ id: bookmark._id as Id<"bookmarks"> });
+      } catch {
+        // click tracking is best-effort
       }
-    } catch {
-      setBookmarks((prev) =>
-        sortBookmarks(
-          prev.map((item) =>
-            item.id === bookmark.id
-              ? { ...item, clicks: item.clicks + 1 }
-              : item
-          )
-        )
-      );
-    }
-  }, []);
+    },
+    [trackClick]
+  );
 
   const handleSearchSubmit = useCallback(() => {
     const query = searchQuery.trim();
@@ -156,7 +112,9 @@ export function BookmarkApp({ initialBookmarks }: BookmarkAppProps) {
       </div>
 
       <main className="flex flex-1 flex-col items-center px-4 pb-28">
-        {filteredBookmarks.length === 0 ? (
+        {bookmarks === undefined ? (
+          <p className="mt-8 text-center text-xs text-muted">Loading...</p>
+        ) : filteredBookmarks.length === 0 ? (
           <p className="mt-8 text-center text-xs text-muted">
             {searchQuery
               ? "No match — press Enter to bookmark"
@@ -166,7 +124,7 @@ export function BookmarkApp({ initialBookmarks }: BookmarkAppProps) {
           <div className="flex flex-wrap justify-center gap-1">
             {filteredBookmarks.map((bookmark) => (
               <BookmarkTile
-                key={bookmark.id}
+                key={bookmark._id}
                 bookmark={bookmark}
                 onOpen={handleOpen}
               />
