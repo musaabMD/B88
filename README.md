@@ -1,43 +1,62 @@
-# B88 — Personal Bookmark Search
+# B88 — My Sites
 
-A fast, personal bookmark manager built with Next.js. Search your saved links and open them in a new tab with one click.
+A simple, mobile-friendly bookmark list. Search your saved sites, tap to open in a new tab, and every site you add is saved to `data/bookmarks.json` in this GitHub repo.
 
 ## Features
 
-- **Instant search** — Filter bookmarks by title, URL, description, category, or tags
-- **Category filters** — Browse by Development, Learning, Tools, and more
-- **Open in new tab** — Click any bookmark to open the link in a new page
-- **Add & edit** — Manage your bookmarks with a simple form
-- **Local storage** — Your bookmarks persist in the browser
-- **Dark theme** — Clean, modern UI
+- Simple list of sites you visit
+- Fast search by name or URL
+- Tap any site to open in a new tab
+- Add sites from your phone or desktop
+- **Synced to GitHub** — new bookmarks are committed to `data/bookmarks.json`
+- Mobile-first layout with large touch targets
 
-## Getting Started
+## Quick Start
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open http://localhost:3000
 
-## Build for Production
+## GitHub Sync Setup
+
+To save bookmarks to GitHub when you add them:
+
+1. Create a [GitHub Personal Access Token](https://github.com/settings/tokens) with `repo` scope
+2. Copy `.env.example` to `.env.local`
+3. Add your token:
 
 ```bash
-npm run build
-npm start
+GITHUB_TOKEN=ghp_your_token_here
+GITHUB_OWNER=musaabMD
+GITHUB_REPO=B88
+GITHUB_BRANCH=main
 ```
 
-## Deploy
+Without a token, bookmarks still save locally to `data/bookmarks.json` during development.
 
-Deploy easily on [Vercel](https://vercel.com):
+## Deploy on Vercel
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/musaabMD/B88)
+1. Push this repo to GitHub
+2. Import the project on [Vercel](https://vercel.com)
+3. Add `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO`, and `GITHUB_BRANCH` as environment variables
+4. Deploy
 
-## Tech Stack
+## Scripts
 
-- [Next.js 15](https://nextjs.org/) — React framework
-- [TypeScript](https://www.typescriptlang.org/) — Type safety
-- [Tailwind CSS 4](https://tailwindcss.com/) — Styling
+```bash
+npm run dev      # Start dev server
+npm run build    # Production build
+npm run start    # Run production server
+```
+
+## How it works
+
+- Bookmarks live in [`data/bookmarks.json`](data/bookmarks.json)
+- The site reads that file on load
+- When you add or remove a site, the API updates the file and commits it to GitHub
 
 ## License
 

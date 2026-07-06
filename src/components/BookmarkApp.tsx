@@ -1,178 +1,177 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { AddBookmarkModal } from "@/components/AddBookmarkModal";
 import { BookmarkCard } from "@/components/BookmarkCard";
-import { BookmarkModal } from "@/components/BookmarkModal";
-import { CategoryFilter } from "@/components/CategoryFilter";
 import { SearchBar } from "@/components/SearchBar";
-import { DEFAULT_BOOKMARKS } from "@/data/default-bookmarks";
-import {
-  filterBookmarks,
-  generateId,
-  loadBookmarks,
-  saveBookmarks,
-} from "@/lib/bookmarks";
+import { filterBookmarks } from "@/lib/bookmarks";
 import type { Bookmark, BookmarkInput } from "@/types/bookmark";
 
-export function BookmarkApp() {
-  const [bookmarks, setBookmarks] = useState<Bookmark[]>(DEFAULT_BOOKMARKS);
+interface BookmarkAppProps {
+  initialBookmarks: Bookmark[];
+}
+
+export function BookmarkApp({ initialBookmarks }: BookmarkAppProps) {
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>(initialBookmarks);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null);
-  const [isHydrated, setIsHydrated] = useState(false);
-
-  useEffect(() => {
-    setBookmarks(loadBookmarks(DEFAULT_BOOKMARKS));
-    setIsHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    if (isHydrated) {
-      saveBookmarks(bookmarks);
-    }
-  }, [bookmarks, isHydrated]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | undefined>();
 
   const filteredBookmarks = useMemo(
-    () => filterBookmarks(bookmarks, searchQuery, selectedCategory),
-    [bookmarks, searchQuery, selectedCategory]
+    () => filterBookmarks(bookmarks, searchQuery),
+    [bookmarks, searchQuery]
   );
 
-  const categoryCounts = useMemo(() => {
-    const counts: Record<string, number> = { All: bookmarks.length };
-    for (const bookmark of bookmarks) {
-      counts[bookmark.category] = (counts[bookmark.category] ?? 0) + 1;
-    }
-    return counts;
-  }, [bookmarks]);
+  const handleAdd = useCallback(async (data: BookmarkInput) => {
+    setIsSaving(true);
+    setError(undefined);
 
-  const handleAdd = useCallback((data: BookmarkInput) => {
-    const newBookmark: Bookmark = {
-      ...data,
-      id: generateId(),
-      createdAt: Date.now(),
-    };
-    setBookmarks((prev) => [newBookmark, ...prev]);
-    setIsModalOpen(false);
-    setEditingBookmark(null);
-  }, []);
+    try {
+      const response = await fetch("/api/bookmarks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
 
-  const handleEdit = useCallback(
-    (data: BookmarkInput) => {
-      if (!editingBookmark) return;
-      setBookmarks((prev) =>
-        prev.map((b) =>
-          b.id === editingBookmark.id ? { ...b, ...data } : b
-        )
-      );
+      const result = (await response.json()) as {
+        bookmarks?: Bookmark[];
+        error?: string;
+      };
+
+      if (!response.ok) {
+        setError(result.error ?? "Could not save bookmark");
+        return;
+      }
+
+      if (result.bookmarks) {
+        setBookmarks(result.bookmarks);
+      }
       setIsModalOpen(false);
-      setEditingBookmark(null);
-    },
-    [editingBookmark]
-  );
-
-  const handleDelete = useCallback((id: string) => {
-    setBookmarks((prev) => prev.filter((b) => b.id !== id));
+    } catch {
+      setError("Could not save bookmark. Try again.");
+    } finally {
+      setIsSaving(false);
+    }
   }, []);
 
-  const openAddModal = () => {
-    setEditingBookmark(null);
-    setIsModalOpen(true);
-  };
+  const handleDelete = useCallback(async (id: string) => {
+    setDeletingId(id);
 
-  const openEditModal = (bookmark: Bookmark) => {
-    setEditingBookmark(bookmark);
-    setIsModalOpen(true);
-  };
+    try {
+      const response = await fetch(`/api/bookmarks?id=${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      });
 
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setEditingBookmark(null);
-  };
+      const result = (await response.json()) as {
+        bookmarks?: Bookmark[];
+        error?: string;
+      };
+
+      if (!response.ok) {
+        setError(result.error ?? "Could not delete bookmark");
+        return;
+      }
+
+      if (result.bookmarks) {
+        setBookmarks(result.bookmarks);
+      }
+    } catch {
+      setError("Could not delete bookmark. Try again.");
+    } finally {
+      setDeletingId(null);
+    }
+  }, []);
 
   return (
-    <main className="mx-auto min-h-screen max-w-3xl px-4 py-10 sm:px-6">
-      <header className="mb-8">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">
-              <span className="text-accent">B88</span> Bookmarks
-            </h1>
-            <p className="mt-1 text-muted">
-              Search and open your saved links
-            </p>
+    <div className="min-h-screen pb-24">
+      <header className="sticky top-0 z-40 border-b border-border/80 bg-background/90 px-4 py-4 backdrop-blur-md sm:px-6">
+        <div className="mx-auto max-w-2xl">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+                My Sites
+              </h1>
+              <p className="text-sm text-muted">
+                {bookmarks.length} saved · synced to GitHub
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setError(undefined);
+                setIsModalOpen(true);
+              }}
+              className="hidden h-11 items-center gap-2 rounded-xl bg-accent px-4 text-sm font-medium text-white sm:flex"
+            >
+              + Add site
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={openAddModal}
-            className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-white shadow-lg shadow-accent/25 transition-all hover:bg-accent-hover hover:shadow-accent/40"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            Add
-          </button>
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            resultCount={filteredBookmarks.length}
+            totalCount={bookmarks.length}
+          />
         </div>
-
-        <SearchBar
-          value={searchQuery}
-          onChange={setSearchQuery}
-          resultCount={filteredBookmarks.length}
-          totalCount={bookmarks.length}
-        />
       </header>
 
-      <section className="mb-6">
-        <CategoryFilter
-          selected={selectedCategory}
-          onChange={setSelectedCategory}
-          counts={categoryCounts}
-        />
-      </section>
+      <main className="mx-auto max-w-2xl px-4 py-4 sm:px-6 sm:py-6">
+        {error && !isModalOpen && (
+          <p className="mb-4 rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-400">
+            {error}
+          </p>
+        )}
 
-      <section className="space-y-3">
-        {!isHydrated ? (
-          <div className="py-20 text-center text-muted">Loading bookmarks...</div>
-        ) : filteredBookmarks.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border py-16 text-center">
-            <p className="text-lg text-muted">No bookmarks found</p>
+        {filteredBookmarks.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border py-16 text-center">
+            <p className="text-lg text-muted">
+              {searchQuery ? "No sites match your search" : "No sites yet"}
+            </p>
             <p className="mt-1 text-sm text-muted/70">
               {searchQuery
-                ? "Try a different search term"
-                : "Add your first bookmark to get started"}
+                ? "Try another word"
+                : "Tap + to save your first site"}
             </p>
-            {!searchQuery && (
-              <button
-                type="button"
-                onClick={openAddModal}
-                className="mt-4 text-sm font-medium text-accent hover:text-accent-hover"
-              >
-                + Add bookmark
-              </button>
-            )}
           </div>
         ) : (
-          filteredBookmarks.map((bookmark) => (
-            <BookmarkCard
-              key={bookmark.id}
-              bookmark={bookmark}
-              onDelete={handleDelete}
-              onEdit={openEditModal}
-            />
-          ))
+          <ul className="space-y-3">
+            {filteredBookmarks.map((bookmark) => (
+              <li key={bookmark.id}>
+                <BookmarkCard
+                  bookmark={bookmark}
+                  onDelete={handleDelete}
+                  isDeleting={deletingId === bookmark.id}
+                />
+              </li>
+            ))}
+          </ul>
         )}
-      </section>
+      </main>
 
-      <footer className="mt-12 text-center text-xs text-muted/50">
-        Click any bookmark to open in a new tab · {bookmarks.length} saved
-      </footer>
+      <button
+        type="button"
+        onClick={() => {
+          setError(undefined);
+          setIsModalOpen(true);
+        }}
+        className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-2xl font-light text-white shadow-lg shadow-accent/30 sm:hidden"
+        aria-label="Add site"
+      >
+        +
+      </button>
 
-      <BookmarkModal
+      <AddBookmarkModal
         isOpen={isModalOpen}
-        editingBookmark={editingBookmark}
-        onClose={closeModal}
-        onSubmit={editingBookmark ? handleEdit : handleAdd}
+        onClose={() => {
+          setIsModalOpen(false);
+          setError(undefined);
+        }}
+        onSubmit={handleAdd}
+        isSaving={isSaving}
+        error={error}
       />
-    </main>
+    </div>
   );
 }

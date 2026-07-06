@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -13,8 +13,20 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "B88 — My Bookmarks",
-  description: "Personal bookmark search and manager",
+  title: "My Sites — B88 Bookmarks",
+  description: "Simple personal bookmark list with search",
+  appleWebApp: {
+    capable: true,
+    title: "My Sites",
+    statusBarStyle: "black-translucent",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  themeColor: "#0a0a0f",
 };
 
 export default function RootLayout({
