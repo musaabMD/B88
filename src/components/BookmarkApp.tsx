@@ -118,9 +118,9 @@ export function BookmarkApp() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="fixed inset-x-0 top-0 z-50 bg-background/95 px-4 py-3 backdrop-blur-md">
-        <div className="mx-auto flex max-w-3xl items-center gap-3">
-          <h1 className="shrink-0 text-sm font-semibold tracking-wide">B88</h1>
+      <header className="fixed inset-x-0 top-0 z-50 bg-background/95 px-4 py-5 backdrop-blur-md">
+        <div className="mx-auto flex max-w-4xl flex-col items-center gap-4">
+          <h1 className="text-2xl font-semibold tracking-wide sm:text-3xl">B88</h1>
           <CategoryTabs
             selected={selectedCategory}
             onChange={setSelectedCategory}
@@ -128,7 +128,7 @@ export function BookmarkApp() {
         </div>
       </header>
 
-      <main className="flex flex-1 flex-col items-center px-4 pt-16 pb-24">
+      <main className="flex flex-1 flex-col items-center px-4 pt-36 pb-28 sm:pt-40">
         {bookmarks === undefined ? (
           <p className="mt-8 text-center text-xs text-muted">Loading...</p>
         ) : filteredBookmarks.length === 0 ? (
@@ -138,7 +138,7 @@ export function BookmarkApp() {
               : "No bookmarks yet"}
           </p>
         ) : (
-          <div className="flex flex-wrap justify-center gap-1">
+          <div className="mx-auto flex max-w-5xl flex-wrap justify-center gap-x-1 gap-y-2">
             {filteredBookmarks.map((bookmark) => (
               <BookmarkTile
                 key={bookmark._id}
