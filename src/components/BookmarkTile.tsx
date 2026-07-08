@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useState } from "react";
 import type { Bookmark } from "@/types/bookmark";
 
 interface BookmarkTileProps {
@@ -25,12 +26,38 @@ export function BookmarkTile({
   isRemoving,
 }: BookmarkTileProps) {
   const favicon = getFaviconUrl(bookmark.url);
+  const [showDelete, setShowDelete] = useState(false);
+  const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleClick = () => {
+    if (showDelete) return;
+
+    if (clickTimer.current) clearTimeout(clickTimer.current);
+    clickTimer.current = setTimeout(() => {
+      onOpen(bookmark);
+      clickTimer.current = null;
+    }, 250);
+  };
+
+  const handleDoubleClick = () => {
+    if (clickTimer.current) {
+      clearTimeout(clickTimer.current);
+      clickTimer.current = null;
+    }
+    setShowDelete(true);
+  };
+
+  const handleDelete = () => {
+    onRemove(bookmark);
+    setShowDelete(false);
+  };
 
   return (
     <div className="relative h-[88px] w-[72px]">
       <button
         type="button"
-        onClick={() => onOpen(bookmark)}
+        onClick={handleClick}
+        onDoubleClick={handleDoubleClick}
         disabled={isRemoving}
         className="group flex h-full w-full flex-col items-center justify-start gap-1.5 rounded-xl p-2 transition-colors hover:bg-tile-hover active:scale-95 disabled:opacity-50"
       >
@@ -57,19 +84,25 @@ export function BookmarkTile({
         </span>
       </button>
 
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onRemove(bookmark);
-        }}
-        disabled={isRemoving}
-        className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500/90 text-[10px] font-bold text-white opacity-80 transition-opacity hover:opacity-100 disabled:opacity-40"
-        aria-label={`Remove ${bookmark.title}`}
-        title="Remove"
-      >
-        ×
-      </button>
+      {showDelete && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-xl bg-black/85 p-1">
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={isRemoving}
+            className="rounded-md bg-red-500 px-2 py-1 text-[10px] font-medium text-white disabled:opacity-50"
+          >
+            Delete
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowDelete(false)}
+            className="text-[10px] text-muted"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
     </div>
   );
 }

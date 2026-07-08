@@ -118,20 +118,17 @@ export function BookmarkApp() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <header className="flex flex-col items-center px-4 pt-8 pb-4">
-        <h1 className="text-lg font-medium tracking-wide text-foreground">
-          B88
-        </h1>
+      <header className="fixed inset-x-0 top-0 z-50 bg-background/95 px-4 py-3 backdrop-blur-md">
+        <div className="mx-auto flex max-w-3xl items-center gap-3">
+          <h1 className="shrink-0 text-sm font-semibold tracking-wide">B88</h1>
+          <CategoryTabs
+            selected={selectedCategory}
+            onChange={setSelectedCategory}
+          />
+        </div>
       </header>
 
-      <div className="mb-4 flex justify-center px-4">
-        <CategoryTabs
-          selected={selectedCategory}
-          onChange={setSelectedCategory}
-        />
-      </div>
-
-      <main className="flex flex-1 flex-col items-center px-4 pb-28">
+      <main className="flex flex-1 flex-col items-center px-4 pt-16 pb-24">
         {bookmarks === undefined ? (
           <p className="mt-8 text-center text-xs text-muted">Loading...</p>
         ) : filteredBookmarks.length === 0 ? (
@@ -155,7 +152,7 @@ export function BookmarkApp() {
         )}
       </main>
 
-      <footer className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <footer className="fixed inset-x-0 bottom-0 z-50 bg-background px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="mx-auto flex max-w-md flex-col items-center">
           {message && (
             <p className="mb-2 text-center text-xs text-muted">{message}</p>
