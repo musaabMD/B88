@@ -14,10 +14,12 @@ export function BookmarkApp() {
   const bookmarks = useQuery(api.bookmarks.list);
   const addFromUrl = useAction(api.bookmarkActions.addFromUrl);
   const trackClick = useMutation(api.bookmarks.trackClick);
+  const removeBookmark = useMutation(api.bookmarks.remove);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [isAdding, setIsAdding] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | undefined>();
 
   const filteredBookmarks = useMemo(() => {
@@ -75,6 +77,24 @@ export function BookmarkApp() {
     [trackClick]
   );
 
+  const handleRemove = useCallback(
+    async (bookmark: Bookmark) => {
+      setRemovingId(bookmark._id);
+      setMessage(undefined);
+
+      try {
+        await removeBookmark({ id: bookmark._id as Id<"bookmarks"> });
+        setMessage(`Removed ${bookmark.title}`);
+        setTimeout(() => setMessage(undefined), 2000);
+      } catch {
+        setMessage("Could not remove bookmark");
+      } finally {
+        setRemovingId(null);
+      }
+    },
+    [removeBookmark]
+  );
+
   const handleSearchSubmit = useCallback(() => {
     const query = searchQuery.trim();
     if (!query) return;
@@ -127,6 +147,8 @@ export function BookmarkApp() {
                 key={bookmark._id}
                 bookmark={bookmark}
                 onOpen={handleOpen}
+                onRemove={handleRemove}
+                isRemoving={removingId === bookmark._id}
               />
             ))}
           </div>
