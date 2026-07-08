@@ -138,7 +138,7 @@ export function BookmarkApp() {
               : "No bookmarks yet"}
           </p>
         ) : (
-          <div className="mx-auto flex max-w-5xl flex-wrap justify-center gap-x-1 gap-y-2">
+          <div className="mx-auto flex max-w-6xl flex-wrap justify-center gap-x-2 gap-y-3">
             {filteredBookmarks.map((bookmark) => (
               <BookmarkTile
                 key={bookmark._id}
